@@ -1,0 +1,44 @@
+
+Write-Host "=== Advanced Driver Repair Tool ===" -ForegroundColor Cyan
+
+if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+    Write-Host "ERROR: Please run this script as Administrator!" -ForegroundColor Red
+    pause
+    exit
+}
+
+Write-Host "`nStarting comprehensive driver repair..." -ForegroundColor Green
+
+Write-Host "`n1. Scanning for hardware changes and driver issues..." -ForegroundColor Cyan
+pnputil /scan-devices
+Write-Host "   Done." -ForegroundColor Green
+
+Write-Host "`n2. Restoring driver store..." -ForegroundColor Cyan
+dism /online /cleanup-image /restorehealth
+pnputil /restorehealth
+
+Write-Host "`n3. Forcing driver reinstall through Windows Update..." -ForegroundColor Cyan
+Write-Host "   This may take several minutes..." -ForegroundColor Yellow
+
+reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\DriverSearching" /v SearchOrder /t REG_DWORD /d 2 /f
+
+Write-Host "   Detecting and updating drivers..." -ForegroundColor White
+pnputil /scan-devices
+Start-Sleep -Seconds 5
+
+Write-Host "`n4. Removing old/unused drivers..." -ForegroundColor Cyan
+pnputil /delete-drivers /o
+dism /online /cleanup-image /startcomponentcleanup /resetbase
+
+Write-Host "`n5. Running final driver verification..." -ForegroundColor Cyan
+Get-PnpDevice | Where-Object {$_.Problem -ne $null} | Format-Table Name, InstanceId, Problem -AutoSize
+
+Write-Host "`n========================================" -ForegroundColor Green
+Write-Host "DRIVER REPAIR COMPLETED" -ForegroundColor Green
+Write-Host "========================================" -ForegroundColor Green
+Write-Host "`nIt is strongly recommended to restart your computer now." -ForegroundColor Yellow
+
+$restart = Read-Host "Restart now? (Y/N)"
+if ($restart -eq 'Y' -or $restart -eq 'y') {
+    Restart-Computer -Force
+}
