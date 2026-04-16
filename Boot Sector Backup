@@ -1,0 +1,24 @@
+net session >nul 2>&1
+if %errorLevel% neq 0 (
+    echo ERROR: Run as Administrator!
+    pause
+    exit
+)
+
+set /p DiskNum="Enter Disk Number to backup (usually 0): "
+
+echo.
+echo Creating backup of boot sector (MBR)...
+echo.
+
+bootsect /nt60 SYS /force /mbr
+
+echo.
+echo Additional raw MBR backup...
+dd if=\\.\PhysicalDrive%DiskNum% of=C:\MBR_Backup_%date:~-4,4%%date:~-10,2%%date:~-7,2%.bin bs=512 count=1 2>nul || echo dd command not available. Bootsect backup done.
+
+echo.
+echo Boot sector backup completed!
+echo Backup location: C:\MBR_Backup_*.bin
+echo.
+pause
